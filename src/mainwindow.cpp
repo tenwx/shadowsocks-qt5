@@ -34,6 +34,7 @@ MainWindow::MainWindow(bool verbose, QWidget *parent) :
     }
 #endif
     m_conf = new Configuration(jsonconfigFile);
+    ssProcess = new SS_Process(this);
 
     ui->laddrEdit->setValidator(&ipv4addrValidator);
     ui->lportEdit->setValidator(&portValidator);
@@ -92,9 +93,9 @@ MainWindow::MainWindow(bool verbose, QWidget *parent) :
     /*
      * SIGNALs and SLOTs
      */
-    connect(&ss_local, &SS_Process::processRead, this, &MainWindow::onProcessReadyRead);
-    connect(&ss_local, &SS_Process::processStarted, this, &MainWindow::onProcessStarted);
-    connect(&ss_local, &SS_Process::processStopped, this, &MainWindow::onProcessStopped);
+    connect(ssProcess, &SS_Process::processRead, this, &MainWindow::onProcessReadyRead);
+    connect(ssProcess, &SS_Process::processStarted, this, &MainWindow::onProcessStarted);
+    connect(ssProcess, &SS_Process::processStopped, this, &MainWindow::onProcessStopped);
     connect(&systray, &QSystemTrayIcon::activated, this, &MainWindow::systrayActivated);
 
     connect(ui->backendToolButton, &QToolButton::clicked, this, &MainWindow::onBackendToolButtonPressed);
@@ -152,7 +153,7 @@ MainWindow::MainWindow(bool verbose, QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
-    ss_local.stop();//prevent crashes
+    ssProcess->stop();//prevent crashes
     delete ui;
     delete m_conf;
 }
@@ -185,7 +186,7 @@ void MainWindow::onCurrentProfileChanged(int i)
      */
     blockChildrenSignals(true);
 
-    ss_local.stop();//Q: should we stop the backend when profile changed?
+    ssProcess->stop();//Q: should we stop the backend when profile changed?
     if(i != m_conf->getIndex()) {
         emit configurationChanged();
     }
@@ -316,7 +317,7 @@ void MainWindow::onStartButtonPressed()
         return;
     }
 
-    ss_local.start(current_profile);
+    ssProcess->start(current_profile, m_conf->isDebug());
 }
 
 void MainWindow::showNotification(const QString &msg)
@@ -407,13 +408,12 @@ void MainWindow::closeEvent(QCloseEvent *e)
 
 void MainWindow::onProcessReadyRead(const QByteArray &o)
 {
-    QString logStream = QString::fromLocal8Bit(o).trimmed();
+    QString str = QString::fromLocal8Bit(o).trimmed();
     if (verboseOutput) {
-        qDebug() << logStream;
+        qDebug() << str;
     }
 
-    ui->logBrowser->moveCursor(QTextCursor::End);
-    ui->logBrowser->append(logStream);
+    ui->logBrowser->append(str);
     ui->logBrowser->moveCursor(QTextCursor::End);
 }
 
@@ -438,7 +438,7 @@ void MainWindow::onBackendTypeChanged(const QString &type)
         ui->timeoutSpinBox->setEnabled(true);
         ui->timeoutLabel->setEnabled(true);
     }
-    if (tID == SSProfile::LIBSHADOWSOCKS) {//libshadowsocks is statically or dynamically linked
+    if (tID == SSProfile::LIBQSS) {//libQtShadowsocks is statically or dynamically linked
         ui->backendEdit->setEnabled(false);
         ui->backendLabel->setEnabled(false);
         ui->backendToolButton->setEnabled(false);
@@ -454,7 +454,7 @@ void MainWindow::onBackendTypeChanged(const QString &type)
     }
 
 #ifdef Q_OS_LINUX
-    if ((tID == SSProfile::LIBEV || tID == SSProfile::PYTHON || tID == SSProfile::LIBSHADOWSOCKS) && m_conf->isTFOAvailable()) {
+    if ((tID == SSProfile::LIBEV || tID == SSProfile::PYTHON) && m_conf->isTFOAvailable()) {
         ui->tfoCheckBox->setEnabled(true);
     }
     else {
