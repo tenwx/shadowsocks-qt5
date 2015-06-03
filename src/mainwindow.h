@@ -1,30 +1,27 @@
 /*
- * MainWindow class
- * Lots of variables, functions are included in this class
- * Copyright 2014 William Wong <librehat@outlook.com>
+ * Copyright (C) 2014-2015 Symeon Huang <hzwhuang@gmail.com>
+ *
+ * shadowsocks-qt5 is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published
+ * by the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * shadowsocks-qt5 is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with libQtShadowsocks; see the file LICENSE. If not, see
+ * <http://www.gnu.org/licenses/>.
  */
+
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QCoreApplication>
-#include <QDesktopWidget>
-#include <QAbstractButton>
-#include <QPushButton>
-#include <QSystemTrayIcon>
-#include <QMenu>
-#include <QFileDialog>
-#include <QStandardPaths>
-#include <QInputDialog>
-#include <QMessageBox>
 #include <QCloseEvent>
-#include "ssprofile.h"
-#include "configuration.h"
-#include "ss_process.h"
-#include "ssvalidator.h"
-#include "ip4validator.h"
-#include "portvalidator.h"
-#include "addprofiledialogue.h"
+#include "confighelper.h"
 
 namespace Ui {
 class MainWindow;
@@ -35,76 +32,51 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(bool verbose = false, QWidget *parent = 0);
+    explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-    Configuration *m_conf;
+
+    bool isOnlyOneInstance() const;
+    bool isHideWindowOnStartup() const;
 
 signals:
-    void configurationChanged(bool saved = false);
-
-public:
-    void minimizeToSysTray();
-
-public slots:
-    void onStartButtonPressed();
-
-private slots:
-    inline void onStopButtonPressed() { ssProcess->stop(); }
-    void addProfileDialogue(bool);
-    void onBackendTypeChanged(const QString &);
-    void deleteProfile();
-    void onLAddrEditFinished(const QString &);
-    void onLPortEditFinished(const QString &);
-    void onMethodChanged(const QString &);
-    void onAddProfileDialogueAccepted(const QString &, bool, const QString &);
-    void onAddProfileDialogueRejected(bool enforce = false);
-    void onBackendToolButtonPressed();
-    void onConfigurationChanged(bool);
-    void onCurrentProfileChanged(int);
-    void onCustomArgsEditFinished(const QString &);
-    void onShareButtonClicked();
-    void onProcessReadyRead(const QByteArray &);
-    void onProcessStarted();
-    void onProcessStopped();
-    void onProfileEditButtonClicked(QAbstractButton*);
-    void onPasswordEditFinished(const QString &);
-    void onServerEditFinished(const QString &);
-    void showWindow();
-    void onSPortEditFinished(const QString &);
-    void systrayActivated(QSystemTrayIcon::ActivationReason);
-    void onTimeoutChanged(int);
-#ifdef Q_OS_LINUX
-    void onTcpFastOpenChanged(bool);
-#endif
-    inline void onAboutButtonClicked() { QMessageBox::about(this, tr("About"), aboutText); }
-    void onAutoHideToggled(bool);
-    void onAutoStartToggled(bool);
-    void onDebugToggled(bool);
-    void onRelativePathToggled(bool);
-    void onTransculentToggled(bool);
-    void saveConfig();
+    void messageArrived(const QString& msg);
 
 private:
-    AddProfileDialogue *addProfileDlg;
-    bool verboseOutput;
-    IP4Validator ipv4addrValidator;
-    PortValidator portValidator;
-    QMenu systrayMenu;
-    QString jsonconfigFile;
-    QSystemTrayIcon systray;
-    SS_Process *ssProcess;
-    SSProfile *current_profile;
-    static const QString aboutText;
+    ConfigHelper *configHelper;
     Ui::MainWindow *ui;
-    void showNotification(const QString &);
+
+    void newProfile(Connection *);
+    void editRow(int row);
     void blockChildrenSignals(bool);
 
-#ifdef Q_OS_LINUX
-    bool isUbuntuUnity;
-#endif
+    static const QUrl issueUrl;
+
+private slots:
+    void onImportGuiJson();
+    void onAddManually();
+    void onAddScreenQRCode();
+    void onAddQRCodeFile();
+    void onAddFromURI();
+    void onAddFromConfigJSON();
+    void onDelete();
+    void onEdit();
+    void onDoubleClicked(const QModelIndex &index);
+    void onShare();
+    void onConnect();
+    void onDisconnect();
+    void onConnectionStatusChanged(const int row, const bool running);
+    void onLatencyTest();
+    void onViewLog();
+    void onStatus();
+    void onMoveUp();
+    void onMoveDown();
+    void onGeneralSettings();
+    void checkCurrentIndex(const QModelIndex &index);
+    void onAbout();
+    void onReportBug();
+    void onCustomContextMenuRequested(const QPoint &pos);
 
 protected:
-    void changeEvent(QEvent *);
     void closeEvent(QCloseEvent *);
 };
 

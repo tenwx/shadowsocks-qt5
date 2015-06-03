@@ -1,23 +1,25 @@
 Source: shadowsocks-qt5
 Section: net
 Priority: extra
-Maintainer: Symeon Huang <hzwhuang@gmail.org>
+Maintainer: Symeon Huang <hzwhuang@gmail.com>
 Build-Depends: debhelper (>= 9),
                pkg-config,
                qt5-qmake,
                qtbase5-dev,
-               qtbase5-private-dev,
                libqrencode-dev,
-               libqtshadowsocks,
+               libqtshadowsocks-dev (>= 1.6.0),
+               libzbar-dev,
+               libappindicator-dev,
                libbotan1.10-dev
-Standards-Version: 3.9.4
+Standards-Version: 3.9.6
 Homepage: https://github.com/librehat/shadowsocks-qt5
 Vcs-Git: https://github.com/librehat/shadowsocks-qt5.git
 Vcs-Browser: https://github.com/librehat/shadowsocks-qt5
 
 Package: shadowsocks-qt5
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: A Qt5 GUI Fronted for Shadowsocks
- Shadowsocks-Qt5 is designed to run fast and reliable while offer an
- intuitive yet highly customisable user interface.
+Depends: ${shlibs:Depends},
+         libqtshadowsocks (>= 1.6.0)
+Description: A cross-platform shadowsocks GUI client
+ Shadowsocks-Qt5 is a native and cross-platform shadowsocks GUI client
+ with advanced features.

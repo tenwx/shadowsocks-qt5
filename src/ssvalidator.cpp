@@ -1,9 +1,6 @@
 #include "ssvalidator.h"
 
-const QStringList SSValidator::supportedMethod = QStringList() << "TABLE" << "RC4" << "RC4-MD5" << "AES-128-CFB" << "AES-192-CFB" << "AES-256-CFB" << "BF-CFB" << "CAMELLIA-128-CFB" << "CAMELLIA-192-CFB" << "CAMELLIA-256-CFB" << "CAST5-CFB" << "DES-CFB" << "IDEA-CFB" << "RC2-CFB" << "SALSA20" << "SEED-CFB";//all upper-case
-
-SSValidator::SSValidator()
-{}
+const QStringList SSValidator::supportedMethod = QStringList() << "TABLE" << "RC4" << "RC4-MD5" << "AES-128-CFB" << "AES-192-CFB" << "AES-256-CFB" << "BF-CFB" << "CAMELLIA-128-CFB" << "CAMELLIA-192-CFB" << "CAMELLIA-256-CFB" << "CAST5-CFB" << "CHACHA20"<< "DES-CFB" << "IDEA-CFB" << "RC2-CFB" << "SALSA20" << "SEED-CFB";//all upper-case
 
 bool SSValidator::validate(QString input)
 {
@@ -45,12 +42,8 @@ bool SSValidator::validate(QString input)
 bool SSValidator::validatePort(const QString &port)
 {
     bool ok;
-    int portNum = port.toInt(&ok);
-    if (portNum >= 0 && portNum <= 65535 && ok) {
-        return true;
-    }
-    else
-        return false;
+    port.toUShort(&ok);
+    return ok;
 }
 
 bool SSValidator::validateMethod(const QString &method)
