@@ -34,20 +34,21 @@ extern "C"
 #define signals public
 #endif
 
+class MainWindow;
+
 class StatusNotifier : public QObject
 {
     Q_OBJECT
 public:
-    explicit StatusNotifier(QObject *parent = 0);
+    explicit StatusNotifier(MainWindow *w, QObject *parent = 0);
     ~StatusNotifier();
 
     bool isUsingAppIndicator() const;
 
 public slots:
-    void hideTopWindow();
-    void showTopWindow();
     void activate();
     void showNotification(const QString &);
+    void onWindowVisibleChanged(bool visible);
 
 private:
 #ifdef Q_OS_UNIX
@@ -55,13 +56,12 @@ private:
     void createAppIndicator();
 #endif
 
-    QMenu *systrayMenu;
+    QMenu systrayMenu;
     QAction *minimiseRestoreAction;
-    QSystemTrayIcon *systray;
+    QSystemTrayIcon systray;
+    MainWindow *window;
 
     bool useAppIndicator;
-
-    void createSystemTray();
 
     //desktop environments that need application indicator
     static const QStringList appIndicatorDE;

@@ -20,8 +20,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QCloseEvent>
 #include "confighelper.h"
+#include "statusnotifier.h"
 
 namespace Ui {
 class MainWindow;
@@ -38,12 +38,12 @@ public:
     bool isOnlyOneInstance() const;
     bool isHideWindowOnStartup() const;
 
-signals:
-    void messageArrived(const QString& msg);
+    void startAutoStartConnections();
 
 private:
     ConfigHelper *configHelper;
     Ui::MainWindow *ui;
+    StatusNotifier *notifier;
 
     void newProfile(Connection *);
     void editRow(int row);
@@ -76,8 +76,10 @@ private slots:
     void onReportBug();
     void onCustomContextMenuRequested(const QPoint &pos);
 
-protected:
-    void closeEvent(QCloseEvent *);
+protected slots:
+    void hideEvent(QHideEvent *e);
+    void showEvent(QShowEvent *e);
+    void closeEvent(QCloseEvent *e);
 };
 
 #endif // MAINWINDOW_H

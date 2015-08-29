@@ -15,7 +15,7 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QScreen>
-#include <QWindow>
+#include <QCloseEvent>
 #include <botan/version.h>
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -35,12 +35,14 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->connectionView->resizeColumnsToContents();
     ui->toolBar->setToolButtonStyle(static_cast<Qt::ToolButtonStyle>(configHelper->getToolbarStyle()));
 
+    notifier = new StatusNotifier(this, this);
+
     connect(configHelper, &ConfigHelper::toolbarStyleChanged, ui->toolBar, &QToolBar::setToolButtonStyle);
     connect(configHelper, &ConfigHelper::rowStatusChanged, this, &MainWindow::onConnectionStatusChanged);
     connect(configHelper, &ConfigHelper::connectionStartFailed, [this] {
         QMessageBox::critical(this, tr("Connect Failed"), tr("Local address or port may be invalid or already in use."));
     });
-    connect(configHelper, &ConfigHelper::message, this, &MainWindow::messageArrived);
+    connect(configHelper, &ConfigHelper::message, notifier, &StatusNotifier::showNotification);
     connect(ui->actionSaveManually, &QAction::triggered, configHelper, &ConfigHelper::save);
     connect(ui->actionTestAllLatency, &QAction::triggered, configHelper, &ConfigHelper::testAllLatency);
 
@@ -79,8 +81,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->connectionView, &QTableView::customContextMenuRequested, this, &MainWindow::onCustomContextMenuRequested);
 
     checkCurrentIndex(ui->connectionView->currentIndex());
-
-    configHelper->startAllAutoStart();//do this at last so that all signal-slot should've been connected
 }
 
 MainWindow::~MainWindow()
@@ -98,6 +98,11 @@ bool MainWindow::isOnlyOneInstance() const
 bool MainWindow::isHideWindowOnStartup() const
 {
     return configHelper->isHideWindowOnStartup();
+}
+
+void MainWindow::startAutoStartConnections()
+{
+    configHelper->startAllAutoStart();
 }
 
 void MainWindow::onImportGuiJson()
@@ -320,14 +325,30 @@ void MainWindow::onReportBug()
     QDesktopServices::openUrl(issueUrl);
 }
 
-void MainWindow::closeEvent(QCloseEvent *e)
-{
-    e->ignore();
-    qApp->topLevelWindows().at(0)->hide();
-}
-
 void MainWindow::onCustomContextMenuRequested(const QPoint &pos)
 {
     this->checkCurrentIndex(ui->connectionView->indexAt(pos));
     ui->menuConnection->popup(ui->connectionView->viewport()->mapToGlobal(pos));
+}
+
+void MainWindow::hideEvent(QHideEvent *e)
+{
+    QMainWindow::hideEvent(e);
+    notifier->onWindowVisibleChanged(false);
+}
+
+void MainWindow::showEvent(QShowEvent *e)
+{
+    QMainWindow::showEvent(e);
+    notifier->onWindowVisibleChanged(true);
+}
+
+void MainWindow::closeEvent(QCloseEvent *e)
+{
+#ifdef Q_OS_UNIX
+    QMainWindow::closeEvent(e);
+#else //but Windows will quit this application, so we have to ignore the event
+    e->ignore();
+    hide();
+#endif
 }
