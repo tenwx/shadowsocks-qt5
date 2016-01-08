@@ -20,6 +20,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QSortFilterProxyModel>
+#include "connectiontablemodel.h"
 #include "confighelper.h"
 #include "statusnotifier.h"
 
@@ -41,6 +43,8 @@ public:
     void startAutoStartConnections();
 
 private:
+    ConnectionTableModel *model;
+    QSortFilterProxyModel *proxyModel;
     ConfigHelper *configHelper;
     Ui::MainWindow *ui;
     StatusNotifier *notifier;
@@ -48,26 +52,28 @@ private:
     void newProfile(Connection *);
     void editRow(int row);
     void blockChildrenSignals(bool);
+    void checkCurrentIndex();
 
     static const QUrl issueUrl;
 
 private slots:
     void onImportGuiJson();
+    void onExportGuiJson();
     void onAddManually();
     void onAddScreenQRCode();
+    void onAddScreenQRCodeCapturer();
     void onAddQRCodeFile();
     void onAddFromURI();
     void onAddFromConfigJSON();
     void onDelete();
     void onEdit();
-    void onDoubleClicked(const QModelIndex &index);
     void onShare();
     void onConnect();
+    void onForceConnect();
     void onDisconnect();
     void onConnectionStatusChanged(const int row, const bool running);
     void onLatencyTest();
     void onViewLog();
-    void onStatus();
     void onMoveUp();
     void onMoveDown();
     void onGeneralSettings();
@@ -75,6 +81,8 @@ private slots:
     void onAbout();
     void onReportBug();
     void onCustomContextMenuRequested(const QPoint &pos);
+    void onFilterToggled(bool);
+    void onFilterTextChanged(const QString &text);
 
 protected slots:
     void hideEvent(QHideEvent *e);

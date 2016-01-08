@@ -7,14 +7,13 @@
 #include "uriinputdialog.h"
 #include "sharedialog.h"
 #include "logdialog.h"
-#include "statusdialog.h"
 #include "settingsdialog.h"
+#include "qrcodecapturer.h"
 
 #include <QDesktopServices>
 #include <QDesktopWidget>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QScreen>
 #include <QCloseEvent>
 #include <botan/version.h>
 
@@ -26,34 +25,42 @@ MainWindow::MainWindow(QWidget *parent) :
 
     //setup Settings menu
     ui->menuSettings->addAction(ui->toolBar->toggleViewAction());
-    ui->menuSettings->addSeparator();
-    ui->menuSettings->addAction(ui->actionGeneralSettings);
 
     //initialisation
-    configHelper = new ConfigHelper(this);
-    ui->connectionView->setModel(configHelper->getModel());
+    model = new ConnectionTableModel(this);
+    configHelper = new ConfigHelper(model, this);
+    proxyModel = new QSortFilterProxyModel(this);
+    proxyModel->setSourceModel(model);
+    proxyModel->setSortRole(Qt::EditRole);
+    proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    proxyModel->setFilterKeyColumn(-1);//read from all columns
+    ui->connectionView->setModel(proxyModel);
     ui->connectionView->resizeColumnsToContents();
     ui->toolBar->setToolButtonStyle(static_cast<Qt::ToolButtonStyle>(configHelper->getToolbarStyle()));
 
-    notifier = new StatusNotifier(this, this);
+    notifier = new StatusNotifier(this, this->isHideWindowOnStartup(), this);
 
     connect(configHelper, &ConfigHelper::toolbarStyleChanged, ui->toolBar, &QToolBar::setToolButtonStyle);
-    connect(configHelper, &ConfigHelper::rowStatusChanged, this, &MainWindow::onConnectionStatusChanged);
-    connect(configHelper, &ConfigHelper::connectionStartFailed, [this] {
-        QMessageBox::critical(this, tr("Connect Failed"), tr("Local address or port may be invalid or already in use."));
-    });
-    connect(configHelper, &ConfigHelper::message, notifier, &StatusNotifier::showNotification);
+    connect(model, &ConnectionTableModel::message, notifier, &StatusNotifier::showNotification);
+    connect(model, &ConnectionTableModel::rowStatusChanged, this, &MainWindow::onConnectionStatusChanged);
     connect(ui->actionSaveManually, &QAction::triggered, configHelper, &ConfigHelper::save);
-    connect(ui->actionTestAllLatency, &QAction::triggered, configHelper, &ConfigHelper::testAllLatency);
+    connect(ui->actionTestAllLatency, &QAction::triggered, model, &ConnectionTableModel::testAllLatency);
+
+    //some UI changes accoding to config
+    ui->toolBar->setVisible(configHelper->isShowToolbar());
+    ui->actionShowFilterBar->setChecked(configHelper->isShowFilterBar());
+    ui->menuBar->setNativeMenuBar(configHelper->isNativeMenuBar());
 
     //Move to the center of the screen
     this->move(QApplication::desktop()->screen()->rect().center() - this->rect().center());
 
     //UI signals
     connect(ui->actionImportGUIJson, &QAction::triggered, this, &MainWindow::onImportGuiJson);
+    connect(ui->actionExportGUIJson, &QAction::triggered, this, &MainWindow::onExportGuiJson);
     connect(ui->actionQuit, &QAction::triggered, qApp, &QApplication::quit);
     connect(ui->actionManually, &QAction::triggered, this, &MainWindow::onAddManually);
     connect(ui->actionQRCode, &QAction::triggered, this, &MainWindow::onAddScreenQRCode);
+    connect(ui->actionScanQRCodeCapturer, &QAction::triggered, this, &MainWindow::onAddScreenQRCodeCapturer);
     connect(ui->actionQRCodeFromFile, &QAction::triggered, this, &MainWindow::onAddQRCodeFile);
     connect(ui->actionURI, &QAction::triggered, this, &MainWindow::onAddFromURI);
     connect(ui->actionFromConfigJson, &QAction::triggered, this, &MainWindow::onAddFromConfigJSON);
@@ -61,31 +68,36 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionEdit, &QAction::triggered, this, &MainWindow::onEdit);
     connect(ui->actionShare, &QAction::triggered, this, &MainWindow::onShare);
     connect(ui->actionConnect, &QAction::triggered, this, &MainWindow::onConnect);
+    connect(ui->actionForceConnect, &QAction::triggered, this, &MainWindow::onForceConnect);
     connect(ui->actionDisconnect, &QAction::triggered, this, &MainWindow::onDisconnect);
     connect(ui->actionTestLatency, &QAction::triggered, this, &MainWindow::onLatencyTest);
     connect(ui->actionViewLog, &QAction::triggered, this, &MainWindow::onViewLog);
-    connect(ui->actionStatus, &QAction::triggered, this, &MainWindow::onStatus);
     connect(ui->actionMoveUp, &QAction::triggered, this, &MainWindow::onMoveUp);
     connect(ui->actionMoveDown, &QAction::triggered, this, &MainWindow::onMoveDown);
     connect(ui->actionGeneralSettings, &QAction::triggered, this, &MainWindow::onGeneralSettings);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::onAbout);
     connect(ui->actionAboutQt, &QAction::triggered, qApp, &QApplication::aboutQt);
     connect(ui->actionReportBug, &QAction::triggered, this, &MainWindow::onReportBug);
+    connect(ui->actionShowFilterBar, &QAction::toggled, configHelper, &ConfigHelper::setShowFilterBar);
+    connect(ui->actionShowFilterBar, &QAction::toggled, this, &MainWindow::onFilterToggled);
+    connect(ui->toolBar, &QToolBar::visibilityChanged, configHelper, &ConfigHelper::setShowToolbar);
+    connect(ui->filterLineEdit, &QLineEdit::textChanged, this, &MainWindow::onFilterTextChanged);
 
-    connect(ui->connectionView, &QTableView::clicked, this, &MainWindow::checkCurrentIndex);
-    connect(ui->connectionView, &QTableView::activated, this, &MainWindow::checkCurrentIndex);
-    connect(ui->connectionView, &QTableView::doubleClicked, this, &MainWindow::onDoubleClicked);
+    connect(ui->connectionView, &QTableView::clicked, this, static_cast<void (MainWindow::*)(const QModelIndex&)>(&MainWindow::checkCurrentIndex));
+    connect(ui->connectionView, &QTableView::activated, this, static_cast<void (MainWindow::*)(const QModelIndex&)>(&MainWindow::checkCurrentIndex));
+    connect(ui->connectionView, &QTableView::doubleClicked, this, &MainWindow::onEdit);
 
     /* set custom context menu */
     ui->connectionView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->connectionView, &QTableView::customContextMenuRequested, this, &MainWindow::onCustomContextMenuRequested);
 
-    checkCurrentIndex(ui->connectionView->currentIndex());
+    checkCurrentIndex();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+    configHelper->save();
 }
 
 const QUrl MainWindow::issueUrl = QUrl("https://github.com/librehat/shadowsocks-qt5/issues");
@@ -113,6 +125,14 @@ void MainWindow::onImportGuiJson()
     }
 }
 
+void MainWindow::onExportGuiJson()
+{
+    QString file = QFileDialog::getSaveFileName(this, tr("Export Connections as gui-config.json"), QString("gui-config.json"), "GUI Configuration (gui-config.json)");
+    if (!file.isNull()) {
+        configHelper->exportGuiConfigJson(file);
+    }
+}
+
 void MainWindow::onAddManually()
 {
     Connection *newCon = new Connection;
@@ -121,21 +141,24 @@ void MainWindow::onAddManually()
 
 void MainWindow::onAddScreenQRCode()
 {
-    QString uri;
-    QList<QScreen *> screens = qApp->screens();
-    for (QList<QScreen *>::iterator sc = screens.begin(); sc != screens.end(); ++sc) {
-        QImage raw_sc = (*sc)->grabWindow(qApp->desktop()->winId()).toImage();
-        QString result = URIHelper::decodeImage(raw_sc);
-        if (!result.isNull()) {
-            uri = result;
-        }
-    }
+    QString uri = QRCodeCapturer::scanEntireScreen();
     if (uri.isNull()) {
         QMessageBox::critical(this, tr("QR Code Not Found"), tr("Can't find any QR code image that contains valid URI on your screen(s)."));
     } else {
         Connection *newCon = new Connection(uri, this);
         newProfile(newCon);
     }
+}
+
+void MainWindow::onAddScreenQRCodeCapturer()
+{
+    QRCodeCapturer *capturer = new QRCodeCapturer(this);
+    connect(capturer, &QRCodeCapturer::finished, capturer, &QRCodeCapturer::deleteLater);
+    connect(capturer, &QRCodeCapturer::qrCodeFound, [this](const QString &uri){
+        Connection *newCon = new Connection(uri, this);
+        newProfile(newCon);
+    });
+    capturer->exec();
 }
 
 void MainWindow::onAddQRCodeFile()
@@ -177,28 +200,18 @@ void MainWindow::onAddFromConfigJSON()
 
 void MainWindow::onDelete()
 {
-    configHelper->deleteRow(ui->connectionView->currentIndex().row());
-    checkCurrentIndex(ui->connectionView->currentIndex());
+    model->removeRow(proxyModel->mapToSource(ui->connectionView->currentIndex()).row());
+    checkCurrentIndex();
 }
 
 void MainWindow::onEdit()
 {
-    editRow(ui->connectionView->currentIndex().row());
-}
-
-void MainWindow::onDoubleClicked(const QModelIndex &index)
-{
-    int row = index.row();
-    if (configHelper->connectionAt(row)->isRunning()) {
-        onStatus();
-    } else {
-        editRow(row);
-    }
+    editRow(proxyModel->mapToSource(ui->connectionView->currentIndex()).row());
 }
 
 void MainWindow::onShare()
 {
-    QByteArray uri = configHelper->connectionAt(ui->connectionView->currentIndex().row())->getURI();
+    QByteArray uri = model->getItem(proxyModel->mapToSource(ui->connectionView->currentIndex()).row())->getConnection()->getURI();
     ShareDialog *shareDlg = new ShareDialog(uri, this);
     connect(shareDlg, &ShareDialog::finished, shareDlg, &ShareDialog::deleteLater);
     shareDlg->exec();
@@ -206,11 +219,22 @@ void MainWindow::onShare()
 
 void MainWindow::onConnect()
 {
-    int row = ui->connectionView->currentIndex().row();
-    Connection *con = configHelper->connectionAt(row);
+    int row = proxyModel->mapToSource(ui->connectionView->currentIndex()).row();
+    Connection *con = model->getItem(row)->getConnection();
     if (con->isValid()) {
         con->start();
-        configHelper->updateTimeAtRow(row);
+    } else {
+        QMessageBox::critical(this, tr("Invalid"), tr("The connection's profile is invalid!"));
+    }
+}
+
+void MainWindow::onForceConnect()
+{
+    int row = proxyModel->mapToSource(ui->connectionView->currentIndex()).row();
+    Connection *con = model->getItem(row)->getConnection();
+    if (con->isValid()) {
+        model->disconnectConnectionsAt(con->getProfile().localAddress, con->getProfile().localPort);
+        con->start();
     } else {
         QMessageBox::critical(this, tr("Invalid"), tr("The connection's profile is invalid!"));
     }
@@ -218,13 +242,13 @@ void MainWindow::onConnect()
 
 void MainWindow::onDisconnect()
 {
-    int row = ui->connectionView->currentIndex().row();
-    configHelper->connectionAt(row)->stop();
+    int row = proxyModel->mapToSource(ui->connectionView->currentIndex()).row();
+    model->getItem(row)->getConnection()->stop();
 }
 
 void MainWindow::onConnectionStatusChanged(const int row, const bool running)
 {
-    if (ui->connectionView->currentIndex().row() == row) {
+    if (proxyModel->mapToSource(ui->connectionView->currentIndex()).row() == row) {
         ui->actionConnect->setEnabled(!running);
         ui->actionDisconnect->setEnabled(running);
     }
@@ -232,37 +256,33 @@ void MainWindow::onConnectionStatusChanged(const int row, const bool running)
 
 void MainWindow::onLatencyTest()
 {
-    configHelper->latencyTestAtRow(ui->connectionView->currentIndex().row());
+    model->getItem(proxyModel->mapToSource(ui->connectionView->currentIndex()).row())->testLatency();
 }
 
 void MainWindow::onViewLog()
 {
-    Connection *con = configHelper->connectionAt(ui->connectionView->currentIndex().row());
+    Connection *con = model->getItem(proxyModel->mapToSource(ui->connectionView->currentIndex()).row())->getConnection();
     LogDialog *logDlg = new LogDialog(con, this);
     connect(logDlg, &LogDialog::finished, logDlg, &LogDialog::deleteLater);
     logDlg->exec();
 }
 
-void MainWindow::onStatus()
-{
-    Connection *con = configHelper->connectionAt(ui->connectionView->currentIndex().row());
-    StatusDialog *statusDlg = new StatusDialog(con, this);
-    connect(statusDlg, &StatusDialog::finished, statusDlg, &StatusDialog::deleteLater);
-    statusDlg->exec();
-}
-
 void MainWindow::onMoveUp()
 {
-    QModelIndex index = configHelper->moveUp(ui->connectionView->currentIndex().row());
-    ui->connectionView->setCurrentIndex(index);
-    checkCurrentIndex(index);
+    QModelIndex proxyIndex = ui->connectionView->currentIndex();
+    int currentRow = proxyModel->mapToSource(proxyIndex).row();
+    int targetRow = proxyModel->mapToSource(proxyModel->index(proxyIndex.row() - 1, proxyIndex.column(), proxyIndex.parent())).row();
+    model->move(currentRow, targetRow);
+    checkCurrentIndex();
 }
 
 void MainWindow::onMoveDown()
 {
-    QModelIndex index = configHelper->moveDown(ui->connectionView->currentIndex().row());
-    ui->connectionView->setCurrentIndex(index);
-    checkCurrentIndex(index);
+    QModelIndex proxyIndex = ui->connectionView->currentIndex();
+    int currentRow = proxyModel->mapToSource(proxyIndex).row();
+    int targetRow = proxyModel->mapToSource(proxyModel->index(proxyIndex.row() + 1, proxyIndex.column(), proxyIndex.parent())).row();
+    model->move(currentRow, targetRow);
+    checkCurrentIndex();
 }
 
 void MainWindow::onGeneralSettings()
@@ -277,7 +297,7 @@ void MainWindow::newProfile(Connection *newCon)
     EditDialog *editDlg = new EditDialog(newCon, this);
     connect(editDlg, &EditDialog::finished, editDlg, &EditDialog::deleteLater);
     if (editDlg->exec()) {//accepted
-        configHelper->addConnection(newCon);
+        model->appendConnection(newCon);
     } else {
         newCon->deleteLater();
     }
@@ -285,32 +305,38 @@ void MainWindow::newProfile(Connection *newCon)
 
 void MainWindow::editRow(int row)
 {
-    Connection *con = configHelper->connectionAt(row);
+    Connection *con = model->getItem(row)->getConnection();
     EditDialog *editDlg = new EditDialog(con, this);
     connect(editDlg, &EditDialog::finished, editDlg, &EditDialog::deleteLater);
-    if (editDlg->exec()) {
-        configHelper->updateNameAtRow(row);
-    }
+    editDlg->exec();
 }
 
-void MainWindow::checkCurrentIndex(const QModelIndex &index)
+void MainWindow::checkCurrentIndex()
 {
+    checkCurrentIndex(ui->connectionView->currentIndex());
+}
+
+void MainWindow::checkCurrentIndex(const QModelIndex &_index)
+{
+    QModelIndex index = proxyModel->mapToSource(_index);
     const bool valid = index.isValid();
-    ui->actionConnect->setEnabled(valid);
-    ui->actionDisconnect->setEnabled(valid);
     ui->actionTestLatency->setEnabled(valid);
     ui->actionEdit->setEnabled(valid);
     ui->actionDelete->setEnabled(valid);
     ui->actionShare->setEnabled(valid);
     ui->actionViewLog->setEnabled(valid);
-    ui->actionStatus->setEnabled(valid);
-    ui->actionMoveUp->setEnabled(valid ? index.row() > 0 : false);
-    ui->actionMoveDown->setEnabled(valid ? index.row() < configHelper->size() - 1 : false);
+    ui->actionMoveUp->setEnabled(valid ? _index.row() > 0 : false);
+    ui->actionMoveDown->setEnabled(valid ? _index.row() < model->rowCount() - 1 : false);
 
     if (valid) {
-        const bool &running = configHelper->connectionAt(index.row())->isRunning();
+        const bool &running = model->getItem(index.row())->getConnection()->isRunning();
         ui->actionConnect->setEnabled(!running);
+        ui->actionForceConnect->setEnabled(!running);
         ui->actionDisconnect->setEnabled(running);
+    } else {
+        ui->actionConnect->setEnabled(false);
+        ui->actionForceConnect->setEnabled(false);
+        ui->actionDisconnect->setEnabled(false);
     }
 }
 
@@ -331,6 +357,18 @@ void MainWindow::onCustomContextMenuRequested(const QPoint &pos)
     ui->menuConnection->popup(ui->connectionView->viewport()->mapToGlobal(pos));
 }
 
+void MainWindow::onFilterToggled(bool show)
+{
+    if (show) {
+        ui->filterLineEdit->setFocus();
+    }
+}
+
+void MainWindow::onFilterTextChanged(const QString &text)
+{
+    proxyModel->setFilterWildcard(text);
+}
+
 void MainWindow::hideEvent(QHideEvent *e)
 {
     QMainWindow::hideEvent(e);
@@ -341,14 +379,15 @@ void MainWindow::showEvent(QShowEvent *e)
 {
     QMainWindow::showEvent(e);
     notifier->onWindowVisibleChanged(true);
+    this->setFocus();
 }
 
 void MainWindow::closeEvent(QCloseEvent *e)
 {
-#ifdef Q_OS_UNIX
-    QMainWindow::closeEvent(e);
-#else //but Windows will quit this application, so we have to ignore the event
-    e->ignore();
-    hide();
-#endif
+    if (e->spontaneous()) {
+        e->ignore();
+        hide();
+    } else {
+        QMainWindow::closeEvent(e);
+    }
 }

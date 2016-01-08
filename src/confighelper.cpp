@@ -7,8 +7,9 @@
 #include <QJsonArray>
 #include <QJsonObject>
 
-ConfigHelper::ConfigHelper(QObject *parent) :
-    QObject(parent)
+ConfigHelper::ConfigHelper(ConnectionTableModel *model, QObject *parent) :
+    QObject(parent),
+    model(model)
 {
 #ifdef Q_OS_WIN
     configFile = QCoreApplication::applicationDirPath() + "/config.ini";
@@ -21,25 +22,10 @@ ConfigHelper::ConfigHelper(QObject *parent) :
 #endif
 
     settings = new QSettings(configFile, QSettings::IniFormat, this);
-
-    QStringList headerLabels = QStringList() << tr("Name") << tr("Latency (ms)") << tr("Last used");
-
-    model = new QStandardItemModel(0, 3, this);
-    model->setHorizontalHeaderLabels(headerLabels);
     readConfiguration();
 }
 
-ConfigHelper::~ConfigHelper()
-{
-    save();
-}
-
 const QString ConfigHelper::profilePrefix = "Profile";
-
-QStandardItemModel *ConfigHelper::getModel() const
-{
-    return model;
-}
 
 void ConfigHelper::save()
 {
@@ -47,7 +33,7 @@ void ConfigHelper::save()
     settings->beginWriteArray(profilePrefix);
     for (int i = 0; i < size; ++i) {
         settings->setArrayIndex(i);
-        Connection *con = model->data(model->index(i, 0), Qt::UserRole).value<Connection *>();
+        Connection *con = model->getItem(i)->getConnection();
         QVariant value = QVariant::fromValue<SQProfile>(con->getProfile());
         settings->setValue("SQProfile", value);
     }
@@ -56,6 +42,10 @@ void ConfigHelper::save()
     settings->setValue("ToolbarStyle", QVariant(toolbarStyle));
     settings->setValue("HideWindowOnStartup", QVariant(hideWindowOnStartup));
     settings->setValue("OnlyOneInstance", QVariant(onlyOneInstace));
+    settings->setValue("ShowToolbar", QVariant(showToolbar));
+    settings->setValue("ShowFilterBar", QVariant(showFilterBar));
+    settings->setValue("NativeMenuBar", QVariant(nativeMenuBar));
+    settings->setValue("ConfigVersion", QVariant(2.6));
 }
 
 void ConfigHelper::importGuiConfigJson(const QString &file)
@@ -64,9 +54,11 @@ void ConfigHelper::importGuiConfigJson(const QString &file)
     JSONFile.open(QIODevice::ReadOnly | QIODevice::Text);
     if (!JSONFile.isOpen()) {
         qCritical() << "Error: cannot open " << file;
+        return;
     }
     if(!JSONFile.isReadable()) {
         qCritical() << "Error: cannot read " << file;
+        return;
     }
 
     QJsonParseError pe;
@@ -117,8 +109,45 @@ void ConfigHelper::importGuiConfigJson(const QString &file)
         p.method = json["method"].toString();
         p.password = json["password"].toString();
         Connection *con = new Connection(p, this);
-        appendConnectionToList(con);
+        model->appendConnection(con);
     }
+}
+
+void ConfigHelper::exportGuiConfigJson(const QString &file)
+{
+    QJsonArray confArray;
+    int size = model->rowCount();
+    for (int i = 0; i < size; ++i) {
+        Connection *con = model->getItem(i)->getConnection();
+        QJsonObject json;
+        json["remarks"] = QJsonValue(con->profile.name);
+        json["method"] = QJsonValue(con->profile.method.toLower());
+        json["password"] = QJsonValue(con->profile.password);
+        json["server_port"] = QJsonValue(con->profile.serverPort);
+        json["server"] = QJsonValue(con->profile.serverAddress);
+        confArray.append(QJsonValue(json));
+    }
+
+    QJsonObject JSONObj;
+    JSONObj["configs"] = QJsonValue(confArray);
+    JSONObj["localPort"] = QJsonValue(1080);
+    JSONObj["shareOverLan"] = QJsonValue(false);
+
+    QJsonDocument JSONDoc(JSONObj);
+
+    QFile JSONFile(file);
+    JSONFile.open(QIODevice::WriteOnly | QIODevice::Text);
+    if (!JSONFile.isOpen()) {
+        qCritical() << "Error: cannot open " << file;
+        return;
+    }
+    if(!JSONFile.isWritable()) {
+        qCritical() << "Error: cannot write into " << file;
+        return;
+    }
+
+    JSONFile.write(JSONDoc.toJson());
+    JSONFile.close();
 }
 
 Connection* ConfigHelper::configJsonToConnection(const QString &file)
@@ -155,68 +184,6 @@ Connection* ConfigHelper::configJsonToConnection(const QString &file)
     return con;
 }
 
-void ConfigHelper::addConnection(Connection *con)
-{
-    con->setParent(this);
-    appendConnectionToList(con);
-}
-
-void ConfigHelper::deleteRow(int row)
-{
-    Connection *removed = model->data(model->index(row, 0), Qt::UserRole).value<Connection *>();
-    removed->deleteLater();
-    model->removeRow(row);
-}
-
-void ConfigHelper::updateNameAtRow(int row)
-{
-    Connection *con = model->data(model->index(row, 0), Qt::UserRole).value<Connection *>();
-    model->setData(model->index(row, 0), QVariant(con->profile.name));
-}
-
-void ConfigHelper::updateTimeAtRow(int row)
-{
-    Connection *con = model->data(model->index(row, 0), Qt::UserRole).value<Connection *>();
-    model->setData(model->index(row, 2), QVariant(con->profile.lastTime.toString()));
-}
-
-Connection* ConfigHelper::connectionAt(int row)
-{
-    return model->data(model->index(row, 0), Qt::UserRole).value<Connection *>();
-}
-
-void ConfigHelper::latencyTestAtRow(int row)
-{
-    Connection *con = model->data(model->index(row, 0), Qt::UserRole).value<Connection *>();
-    con->latencyTest();
-}
-
-QVariant ConfigHelper::convertLatencyToVariant(const int latency)
-{
-    QVariant latencyData;
-    switch (latency) {
-    case -1:
-        latencyData = QVariant(3000);//>= 3000 ms: timeout
-        break;
-    case -3://unknown
-        latencyData = QVariant(0);
-        break;
-    case -2://error
-    default:
-        latencyData = QVariant(latency);
-    }
-    return latencyData;
-}
-
-void ConfigHelper::testAllLatency()
-{
-    int size = model->rowCount();
-    for (int i = 0; i < size; ++i) {
-        Connection *con = model->data(model->index(i, 0), Qt::UserRole).value<Connection *>();
-        con->latencyTest();
-    }
-}
-
 int ConfigHelper::getToolbarStyle() const
 {
     return toolbarStyle;
@@ -232,7 +199,22 @@ bool ConfigHelper::isOnlyOneInstance() const
     return onlyOneInstace;
 }
 
-void ConfigHelper::setGeneralSettings(int ts, bool hide, bool oneInstance)
+bool ConfigHelper::isShowToolbar() const
+{
+    return showToolbar;
+}
+
+bool ConfigHelper::isShowFilterBar() const
+{
+    return showFilterBar;
+}
+
+bool ConfigHelper::isNativeMenuBar() const
+{
+    return nativeMenuBar;
+}
+
+void ConfigHelper::setGeneralSettings(int ts, bool hide, bool oneInstance, bool nativeMB)
 {
     if (toolbarStyle != ts) {
         emit toolbarStyleChanged(static_cast<Qt::ToolButtonStyle>(ts));
@@ -240,59 +222,46 @@ void ConfigHelper::setGeneralSettings(int ts, bool hide, bool oneInstance)
     toolbarStyle = ts;
     hideWindowOnStartup = hide;
     onlyOneInstace = oneInstance;
+    nativeMenuBar = nativeMB;
 }
 
-int ConfigHelper::size() const
+void ConfigHelper::setShowToolbar(bool show)
 {
-    return model->rowCount();
+    showToolbar = show;
 }
 
-QModelIndex ConfigHelper::moveUp(int row)
+void ConfigHelper::setShowFilterBar(bool show)
 {
-    QList<QStandardItem*> src = model->takeRow(row);
-    model->insertRow(row - 1, src);
-    return model->index(row - 1, 0);
-}
-
-QModelIndex ConfigHelper::moveDown(int row)
-{
-    QList<QStandardItem*> src = model->takeRow(row);
-    model->insertRow(row + 1, src);
-    return model->index(row + 1, 0);
-}
-
-void ConfigHelper::appendConnectionToList(Connection *con)
-{
-    connect(con, &Connection::stateChanged, this, &ConfigHelper::onConnectionStateChanged);
-    connect(con, &Connection::pingFinished, this, &ConfigHelper::onConnectionPingFinished);
-    connect(con, &Connection::startFailed, this, &ConfigHelper::connectionStartFailed);
-    QList<QStandardItem *> items;
-    QStandardItem *name = new QStandardItem();
-    name->setData(QVariant(con->profile.name), Qt::DisplayRole);
-    name->setData(QVariant::fromValue(con), Qt::UserRole);
-    QStandardItem *latency = new QStandardItem;
-    latency->setData(convertLatencyToVariant(con->profile.latency), Qt::DisplayRole);
-    QStandardItem *last = new QStandardItem(con->profile.lastTime.toString());
-    items << name << latency << last;
-    model->appendRow(items);
+    showFilterBar = show;
 }
 
 void ConfigHelper::readConfiguration()
 {
+    qreal configVer = settings->value("ConfigVersion", QVariant(2.4)).toReal();
     int size = settings->beginReadArray(profilePrefix);
     for (int i = 0; i < size; ++i) {
         settings->setArrayIndex(i);
         QVariant value = settings->value("SQProfile");
         SQProfile profile = value.value<SQProfile>();
         checkProfileDataUsageReset(profile);
+        if (configVer < 2.5) {
+            profile.httpMode = false;
+        }
+        if (configVer < 2.6) {
+            qCritical() << "configVer" << configVer << " < 2.6";
+            profile.onetimeAuth = false;
+        }
         Connection *con = new Connection(profile, this);
-        appendConnectionToList(con);
+        model->appendConnection(con);
     }
     settings->endArray();
 
     toolbarStyle = settings->value("ToolbarStyle", QVariant(4)).toInt();
     hideWindowOnStartup = settings->value("HideWindowOnStartup").toBool();
     onlyOneInstace = settings->value("OnlyOneInstance", QVariant(true)).toBool();
+    showToolbar = settings->value("ShowToolbar", QVariant(true)).toBool();
+    showFilterBar = settings->value("ShowFilterBar", QVariant(true)).toBool();
+    nativeMenuBar = settings->value("NativeMenuBar", QVariant(false)).toBool();
 }
 
 void ConfigHelper::checkProfileDataUsageReset(SQProfile &profile)
@@ -313,72 +282,13 @@ void ConfigHelper::checkProfileDataUsageReset(SQProfile &profile)
     }
 }
 
-void ConfigHelper::onConnectionStateChanged(bool running)
-{
-    Connection *c = qobject_cast<Connection*>(sender());
-    if (!c) {
-        return;
-    }
-
-    if (running) {
-        emit message(c->getName() + " " + tr("connected"));
-    } else {
-        emit message(c->getName() + " " + tr("disconnected"));
-    }
-
-    QFont font;
-    font.setBold(running);
-
-    int size = model->rowCount();
-    int row = 0;
-    for (; row < size; ++row) {
-        if(model->data(model->index(row, 0), Qt::UserRole).value<Connection *>() == c) {
-            break;
-        }
-    }
-    if(row == size) {
-        //row doesn't exist (already deleted)
-        return;
-    }
-    int cols = model->columnCount();
-    for (int i = 0; i < cols; ++i) {
-        model->item(row, i)->setFont(font);
-    }
-    emit rowStatusChanged(row, running);
-}
-
-void ConfigHelper::onConnectionPingFinished(const int latency)
-{
-    Connection *c = qobject_cast<Connection *>(sender());
-    if (!c) {
-        return;
-    }
-
-    int size = model->rowCount();
-    for (int i = 0; i < size; ++i) {
-        Connection *con = model->data(model->index(i, 0), Qt::UserRole).value<Connection *>();
-        if (con == c) {
-            model->setData(model->index(i, 1), convertLatencyToVariant(latency));
-            break;
-        }
-    }
-
-    if (latency == -1) {//TIMEOUT
-        emit message(c->getName() + " " + tr("timed out"));
-    } else if (latency == -2) {//ERROR
-        emit message(c->getName() + " " + tr("latency test failed"));
-    }
-}
-
 void ConfigHelper::startAllAutoStart()
 {
     int size = model->rowCount();
     for (int i = 0; i < size; ++i) {
-        Connection *con = model->data(model->index(i, 0), Qt::UserRole).value<Connection *>();
+        Connection *con = model->getItem(i)->getConnection();
         if (con->profile.autoStart) {
             con->start();
-            //update time
-            model->setData(model->index(i, 2), QVariant(con->profile.lastTime.toString()));
         }
     }
 }

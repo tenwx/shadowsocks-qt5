@@ -16,34 +16,42 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-#ifndef STATUSDIALOG_H
-#define STATUSDIALOG_H
+#ifndef CONNECTIONITEM_H
+#define CONNECTIONITEM_H
 
-#include <QDialog>
+#include <QObject>
+#include <QStringList>
 #include "connection.h"
 
-namespace Ui {
-class StatusDialog;
-}
-
-class StatusDialog : public QDialog
+class ConnectionItem : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit StatusDialog(Connection*, QWidget *parent = 0);
-    ~StatusDialog();
+    explicit ConnectionItem(Connection *_con, QObject *parent = nullptr);
+
+    static int columnCount();
+    QVariant data(int column, int role = Qt::DisplayRole) const;
+
+    Connection* getConnection();
+    void testLatency();
+
+signals:
+    void message(const QString&);
+    void stateChanged(bool);
+    void latencyChanged();
 
 private:
-    Ui::StatusDialog *ui;
     Connection *con;
 
-    static QString convertToHumanReadable(quint64 bytes);
-    static const QStringList units;
+    static QString convertLatencyToString(const int latency);
+    static QString convertBytesToHumanReadable(quint64 bytes);
+    static const QStringList bytesUnits;
 
 private slots:
-    void onStatusChanged(bool);
-    void onBytesChanged(const quint64 &current, const quint64 &total);
+    void onConnectionStateChanged(bool running);
+    void onConnectionPingFinished(const int latency);
+    void onStartFailed();
 };
 
-#endif // STATUSDIALOG_H
+#endif // CONNECTIONITEM_H

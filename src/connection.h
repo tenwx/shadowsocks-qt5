@@ -22,7 +22,6 @@
 #include <QObject>
 #include <QtShadowsocks>
 #include "sqprofile.h"
-#include "controllerthread.h"
 
 class Connection : public QObject
 {
@@ -43,7 +42,7 @@ public:
 
 signals:
     void stateChanged(bool started);
-    void pingFinished(const int);
+    void latencyAvailable(const int);
     void newLogAvailable(const QString &);
     void dataUsageChanged(const quint64 &current, const quint64 &total);
     void startFailed();
@@ -53,7 +52,7 @@ public slots:
     void stop();
 
 private:
-    ControllerThread *controllerThread;
+    QSS::Controller *controller;
     SQProfile profile;
     bool running;
     QString log;
@@ -64,11 +63,13 @@ private:
     friend class ConfigHelper;
     friend class StatusDialog;
     friend class LogDialog;
+    friend class ConnectionItem;
 
 private slots:
+    void onNewBytesTransmitted(const quint64 &);
     void onNewLog(const QString &);
     void onServerAddressLookedUp(const QHostInfo &host);
-    void onLatencyTestFinished(int);
+    void onLatencyAvailable(const int &);
 };
 Q_DECLARE_METATYPE(Connection*)
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>400</height>
+    <width>480</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -29,9 +29,22 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
+     <widget class="QLineEdit" name="filterLineEdit">
+      <property name="placeholderText">
+       <string>Input to filter</string>
+      </property>
+      <property name="clearButtonEnabled">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+    <item>
      <widget class="QTableView" name="connectionView">
       <property name="editTriggers">
        <set>QAbstractItemView::NoEditTriggers</set>
+      </property>
+      <property name="tabKeyNavigation">
+       <bool>false</bool>
       </property>
       <property name="selectionMode">
        <enum>QAbstractItemView::SingleSelection</enum>
@@ -96,8 +109,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>400</width>
-     <height>29</height>
+     <width>480</width>
+     <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuConnection">
@@ -110,13 +123,13 @@
      </property>
      <property name="icon">
       <iconset theme="list-add">
-       <normaloff/>
-      </iconset>
+       <normaloff>.</normaloff>.</iconset>
      </property>
      <addaction name="actionManually"/>
      <addaction name="actionURI"/>
      <addaction name="actionQRCodeFromFile"/>
      <addaction name="actionQRCode"/>
+     <addaction name="actionScanQRCodeCapturer"/>
      <addaction name="actionFromConfigJson"/>
     </widget>
     <addaction name="menuAdd"/>
@@ -125,12 +138,12 @@
     <addaction name="actionDelete"/>
     <addaction name="separator"/>
     <addaction name="actionConnect"/>
+    <addaction name="actionForceConnect"/>
     <addaction name="actionDisconnect"/>
     <addaction name="actionTestLatency"/>
     <addaction name="actionTestAllLatency"/>
     <addaction name="separator"/>
     <addaction name="actionViewLog"/>
-    <addaction name="actionStatus"/>
     <addaction name="separator"/>
     <addaction name="actionMoveUp"/>
     <addaction name="actionMoveDown"/>
@@ -140,6 +153,7 @@
      <string>Fi&amp;le</string>
     </property>
     <addaction name="actionImportGUIJson"/>
+    <addaction name="actionExportGUIJson"/>
     <addaction name="actionSaveManually"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
@@ -148,6 +162,9 @@
     <property name="title">
      <string>Settin&amp;gs</string>
     </property>
+    <addaction name="actionGeneralSettings"/>
+    <addaction name="separator"/>
+    <addaction name="actionShowFilterBar"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -166,8 +183,7 @@
   <action name="actionManually">
    <property name="icon">
     <iconset theme="edit-guides">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Manually</string>
@@ -179,8 +195,7 @@
   <action name="actionQRCode">
    <property name="icon">
     <iconset theme="edit-image-face-recognize">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Scan QR Code on Screen</string>
@@ -189,8 +204,7 @@
   <action name="actionQRCodeFromFile">
    <property name="icon">
     <iconset theme="document-open">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;From QR Code Image File</string>
@@ -202,8 +216,7 @@
   <action name="actionURI">
    <property name="icon">
     <iconset theme="text-field">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;URI</string>
@@ -215,8 +228,7 @@
   <action name="actionDelete">
    <property name="icon">
     <iconset theme="list-remove">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Delete</string>
@@ -225,8 +237,7 @@
   <action name="actionEdit">
    <property name="icon">
     <iconset theme="document-edit">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Edit</string>
@@ -235,8 +246,7 @@
   <action name="actionConnect">
    <property name="icon">
     <iconset theme="network-connect">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Connect</string>
@@ -245,8 +255,7 @@
   <action name="actionDisconnect">
    <property name="icon">
     <iconset theme="network-disconnect">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>D&amp;isconnect</string>
@@ -255,18 +264,19 @@
   <action name="actionQuit">
    <property name="icon">
     <iconset theme="application-exit">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
   <action name="actionAbout">
    <property name="icon">
     <iconset theme="help-about">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;About</string>
@@ -280,8 +290,7 @@
   <action name="actionGeneralSettings">
    <property name="icon">
     <iconset theme="configure">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;General Settings</string>
@@ -290,8 +299,7 @@
   <action name="actionShare">
    <property name="icon">
     <iconset theme="document-share">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Share</string>
@@ -300,8 +308,7 @@
   <action name="actionReportBug">
    <property name="icon">
     <iconset theme="tools-report-bug">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Report Bug</string>
@@ -310,8 +317,7 @@
   <action name="actionViewLog">
    <property name="icon">
     <iconset theme="view-list-text">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>View &amp;Log</string>
@@ -320,8 +326,7 @@
   <action name="actionTestLatency">
    <property name="icon">
     <iconset theme="flag">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Test Latency</string>
@@ -335,16 +340,10 @@
     <string>Test All C&amp;onnections Latency</string>
    </property>
   </action>
-  <action name="actionStatus">
-   <property name="text">
-    <string>Stat&amp;us</string>
-   </property>
-  </action>
   <action name="actionImportGUIJson">
    <property name="icon">
     <iconset theme="document-import">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Import Connections from gui-config.json</string>
@@ -356,8 +355,7 @@
   <action name="actionFromConfigJson">
    <property name="icon">
     <iconset theme="document-open">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>From &amp;config.json</string>
@@ -366,18 +364,19 @@
   <action name="actionSaveManually">
    <property name="icon">
     <iconset theme="document-save">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Save Manually</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
    </property>
   </action>
   <action name="actionMoveUp">
    <property name="icon">
     <iconset theme="go-up">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>&amp;Move Up</string>
@@ -386,11 +385,53 @@
   <action name="actionMoveDown">
    <property name="icon">
     <iconset theme="go-down">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Mo&amp;ve Down</string>
+   </property>
+  </action>
+  <action name="actionShowFilterBar">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Show Filter Bar</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
+   </property>
+  </action>
+  <action name="actionExportGUIJson">
+   <property name="icon">
+    <iconset theme="document-export">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Export as gui-config.json</string>
+   </property>
+  </action>
+  <action name="actionScanQRCodeCapturer">
+   <property name="icon">
+    <iconset theme="edit-image-face-recognize">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Scan &amp;QR Code using Capturer</string>
+   </property>
+   <property name="toolTip">
+    <string>Scan QR Code using Capturer</string>
+   </property>
+  </action>
+  <action name="actionForceConnect">
+   <property name="text">
+    <string>Force Connect</string>
+   </property>
+   <property name="toolTip">
+    <string>Connect to this connection and disconnect any connections currently using  the same local port</string>
    </property>
   </action>
  </widget>
@@ -398,5 +439,22 @@
  <resources>
   <include location="icons.qrc"/>
  </resources>
- <connections/>
+ <connections>
+  <connection>
+   <sender>actionShowFilterBar</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>filterLineEdit</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>239</x>
+     <y>88</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

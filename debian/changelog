@@ -1,3 +1,40 @@
+shadowsocks-qt5 (2.6.0-1) stable; urgency=medium
+
+  * support one-time authentication
+  * drop support for RC4 and TABLE
+  * real-time latency update
+
+ -- Symeon Huang <hzwhuang@gmail>  Sun, 08 Nov 2015 17:22:00 +0000
+
+shadowsocks-qt5 (2.5.1-1) stable; urgency=medium
+
+  * fix a UI issue when a connection is removed
+  * fix a minimize/restore issue
+  * fix a crash on Windows platform
+  * fix sorting issues
+
+ -- Symeon Huang <hzwhuang@gmail>  Wed, 30 Sep 2015 18:15:00 +0100
+
+shadowsocks-qt5 (2.5.0-1) stable; urgency=medium
+
+  * update for libQtShadowsocks 1.7
+  * support HTTP proxy mode
+  * add "force connect" action
+  * add filter bar to filter the table view
+  * add an action to export settings as gui-config.json
+  * add a capturer to scan QR code (more precisely)
+  * other bug fixes and improvements
+
+ -- Symeon Huang <hzwhuang@gmail>  Mon, 21 Sep 2015 14:27:00 +0100
+
+shadowsocks-qt5 (2.4.2-1) stable; urgency=medium
+
+  * get focus after restored
+  * fix system tray menu
+  * fix logout issues in some desktop environment
+
+ -- Symeon Huang <hzwhuang@gmail>  Tue, 01 Sep 2015 20:54:00 +0000
+
 shadowsocks-qt5 (2.4.1-1) stable; urgency=medium
 
   * use mutex to avoid possible crashes #158

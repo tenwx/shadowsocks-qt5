@@ -13,9 +13,10 @@ SOURCES      += src/main.cpp\
                 src/uriinputdialog.cpp \
                 src/sqprofile.cpp \
                 src/settingsdialog.cpp \
-                src/statusdialog.cpp \
-                src/controllerthread.cpp \
-                src/statusnotifier.cpp
+                src/statusnotifier.cpp \
+                src/connectiontablemodel.cpp \
+                src/connectionitem.cpp \
+                src/qrcodecapturer.cpp
 
 HEADERS      += src/mainwindow.h \
                 src/ip4validator.h \
@@ -31,9 +32,10 @@ HEADERS      += src/mainwindow.h \
                 src/uriinputdialog.h \
                 src/sqprofile.h \
                 src/settingsdialog.h \
-                src/statusdialog.h \
-                src/controllerthread.h \
-                src/statusnotifier.h
+                src/statusnotifier.h \
+                src/connectiontablemodel.h \
+                src/connectionitem.h \
+                src/qrcodecapturer.h
 
 FORMS        += src/mainwindow.ui \
                 src/sharedialog.ui \
@@ -41,7 +43,7 @@ FORMS        += src/mainwindow.ui \
                 src/logdialog.ui \
                 src/uriinputdialog.ui \
                 src/settingsdialog.ui \
-                src/statusdialog.ui
+                src/qrcodecapturer.ui
 
 RESOURCES    += src/icons.qrc \
                 src/translations.qrc
@@ -57,17 +59,7 @@ isEmpty(BOTAN_VER) {
 win32: {
     win32-msvc*: error("Doesn't Support MSVC! Please use MinGW GCC.")
     else: {
-        INCLUDEPATH +=  $$top_srcdir/3rdparty/qrencode/include \
-                        $$top_srcdir/3rdparty/zbar/include \
-                        D:/Projects/libQtShadowsocks/lib#just for convenience
-        contains(DEFINES, mingw64): {
-            LIBS += -L$$top_srcdir/3rdparty/qrencode/mingw64 \
-                    -L$$top_srcdir/3rdparty/zbar/mingw64
-        }
-        else {
-            LIBS += -L$$top_srcdir/3rdparty/qrencode/mingw32 \
-                    -L$$top_srcdir/3rdparty/zbar/mingw32
-        }
+        INCLUDEPATH += D:/Projects/libQtShadowsocks/lib#just for convenience
     }
     LIBS += -L./ -lqrencode -lQtShadowsocks -lbotan-$$BOTAN_VER -lzbar -liconv
 }

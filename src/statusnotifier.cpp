@@ -7,7 +7,7 @@
 #include <QDBusPendingCall>
 #endif
 
-StatusNotifier::StatusNotifier(MainWindow *w, QObject *parent) :
+StatusNotifier::StatusNotifier(MainWindow *w, bool startHiden, QObject *parent) :
     QObject(parent),
     window(w)
 {
@@ -18,7 +18,7 @@ StatusNotifier::StatusNotifier(MainWindow *w, QObject *parent) :
             this->activate();
         }
     });
-    minimiseRestoreAction = new QAction(tr("Minimise"), this);
+    minimiseRestoreAction = new QAction(startHiden ? tr("Restore") : tr("Minimise"), this);
     connect(minimiseRestoreAction, &QAction::triggered, this, &StatusNotifier::activate);
     systrayMenu.addAction(minimiseRestoreAction);
     systrayMenu.addAction(QIcon::fromTheme("application-exit", QIcon::fromTheme("exit")), tr("Quit"), qApp, SLOT(quit()));
@@ -26,9 +26,9 @@ StatusNotifier::StatusNotifier(MainWindow *w, QObject *parent) :
 
 #ifdef Q_OS_UNIX
     QString de(getenv("XDG_CURRENT_DESKTOP"));
-    useAppIndicator = (appIndicatorDE.contains(de, Qt::CaseInsensitive) && !QT_VERSION_CHECK(5, 4, 2));
+    useAppIndicator = appIndicatorDE.contains(de, Qt::CaseInsensitive);
     if (useAppIndicator) {
-        createAppIndicator();
+        createAppIndicator(startHiden);
     } else {
 #endif
         systray.show();
@@ -44,16 +44,18 @@ StatusNotifier::~StatusNotifier()
 #endif
 }
 
-const QStringList StatusNotifier::appIndicatorDE = QStringList() << "Unity" << "XFCE" << "Pantheon" << "GNOME" << "LXDE";
+const QStringList StatusNotifier::appIndicatorDE = QStringList() << "Unity" << "XFCE" << "Pantheon" << "LXDE";
 
 #ifdef Q_OS_UNIX
 void onAppIndicatorActivated(GtkMenuItem *, gpointer data)
 {
-    MainWindow *w = reinterpret_cast<MainWindow *>(data);
-    if (w->isVisible()) {
-        w->hide();
+    MainWindow *window = reinterpret_cast<MainWindow *>(data);
+    if (!window->isVisible() || window->isMinimized()) {
+        window->showNormal();
+        window->activateWindow();
+        window->raise();
     } else {
-        w->show();
+        window->hide();
     }
 }
 
@@ -62,12 +64,13 @@ void onQuit(GtkMenu *, gpointer data)
     reinterpret_cast<QApplication *>(data)->quit();
 }
 
-void StatusNotifier::createAppIndicator()
+void StatusNotifier::createAppIndicator(bool startHiden)
 {
     AppIndicator *indicator = app_indicator_new("Shadowsocks-Qt5", "shadowsocks-qt5", APP_INDICATOR_CATEGORY_OTHER);
     GtkWidget *menu = gtk_menu_new();
 
-    minimiseRestoreGtkItem = gtk_menu_item_new_with_label(tr("Minimise").toLocal8Bit().constData());
+    minimiseRestoreGtkItem = gtk_menu_item_new_with_label(
+        tr(startHiden ? "Restore" : "Minimise").toLocal8Bit().constData());
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), minimiseRestoreGtkItem);
     g_signal_connect(minimiseRestoreGtkItem, "activate", G_CALLBACK(onAppIndicatorActivated), window);
     gtk_widget_show(minimiseRestoreGtkItem);
@@ -89,11 +92,12 @@ bool StatusNotifier::isUsingAppIndicator() const
 
 void StatusNotifier::activate()
 {
-    if (window->isVisible()) {
-        window->hide();
+    if (!window->isVisible() || window->isMinimized()) {
+        window->showNormal();
+        window->activateWindow();
+        window->raise();
     } else {
-        window->show();
-        window->setFocus();
+        window->hide();
     }
 }
 

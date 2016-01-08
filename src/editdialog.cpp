@@ -25,8 +25,10 @@ EditDialog::EditDialog(Connection *_connection, QWidget *parent) :
     ui->serverPortEdit->setText(QString::number(connection->profile.serverPort));
     ui->localAddrEdit->setText(connection->profile.localAddress);
     ui->localPortEdit->setText(QString::number(connection->profile.localPort));
+    ui->httpRadioButton->setChecked(connection->profile.httpMode);
     ui->pwdEdit->setText(connection->profile.password);
     ui->encryptComboBox->setCurrentText(connection->profile.method.toUpper());
+    ui->otaCheckBox->setChecked(connection->profile.onetimeAuth);
     ui->timeoutSpinBox->setValue(connection->profile.timeout);
     ui->resetDateEdit->setDate(connection->profile.nextResetDate);
     ui->resetDateEdit->setMinimumDate(QDate::currentDate());
@@ -50,12 +52,14 @@ void EditDialog::save()
     connection->profile.serverPort = ui->serverPortEdit->text().toUShort();
     connection->profile.localAddress = ui->localAddrEdit->text();
     connection->profile.localPort = ui->localPortEdit->text().toUShort();
+    connection->profile.httpMode = ui->httpRadioButton->isChecked();
     connection->profile.password = ui->pwdEdit->text();
     connection->profile.method = ui->encryptComboBox->currentText();
     connection->profile.timeout = ui->timeoutSpinBox->value();
     connection->profile.nextResetDate = ui->resetDateEdit->date();
     connection->profile.autoStart = ui->autoStartCheckBox->isChecked();
     connection->profile.debug = ui->debugCheckBox->isChecked();
+    connection->profile.onetimeAuth = ui->otaCheckBox->isChecked();
 
     this->accept();
 }
