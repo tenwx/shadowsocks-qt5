@@ -4,14 +4,14 @@
 #
 #-------------------------------------------------
 
-QT        += core gui widgets network
-unix: QT  += dbus
+QT               += core gui widgets network
+unix: !macx: QT  += dbus
 
 CONFIG    += c++11
 
 TARGET     = ss-qt5
 TEMPLATE   = app
-VERSION    = 2.6.0
+VERSION    = 2.7.0
 DEFINES   += APP_VERSION=\\\"$$VERSION\\\"
 
 include(src/ss-qt5.pri)
@@ -27,6 +27,9 @@ isEmpty(INSTALL_PREFIX) {
     else: INSTALL_PREFIX = ..
 }
 
+macx: {
+    ICON = src/icons/shadowsocks-qt5.icns
+}
 unix: {
     desktop.path  = $$INSTALL_PREFIX/share/applications
     ssicon.path   = $$INSTALL_PREFIX/share/icons/hicolor/512x512/apps

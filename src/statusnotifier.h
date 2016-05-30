@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Symeon Huang <hzwhuang@gmail.com>
+ * Copyright (C) 2015-2016 Symeon Huang <hzwhuang@gmail.com>
  *
  * shadowsocks-qt5 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -24,7 +24,7 @@
 #include <QMenu>
 #include <QStringList>
 
-#ifdef Q_OS_UNIX
+#ifdef USE_APP_INDICATOR
 #undef signals
 extern "C"
 {
@@ -51,7 +51,7 @@ public slots:
     void onWindowVisibleChanged(bool visible);
 
 private:
-#ifdef Q_OS_UNIX
+#ifdef USE_APP_INDICATOR
     GtkWidget *minimiseRestoreGtkItem;
     void createAppIndicator(bool startHiden);
 #endif

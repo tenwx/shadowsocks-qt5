@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Symeon Huang <hzwhuang@gmail.com>
+ * Copyright (C) 2015-2016 Symeon Huang <hzwhuang@gmail.com>
  *
  * shadowsocks-qt5 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -69,7 +69,8 @@ private slots:
     void onNewBytesTransmitted(const quint64 &);
     void onNewLog(const QString &);
     void onServerAddressLookedUp(const QHostInfo &host);
-    void onLatencyAvailable(const int &);
+    void onLatencyAvailable(const int);
+    void onConnectivityTestFinished(bool);
 };
 Q_DECLARE_METATYPE(Connection*)
 

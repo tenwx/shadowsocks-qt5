@@ -1,39 +1,27 @@
 #include "confighelper.h"
-#include <QDir>
-#include <QCoreApplication>
-#include <QDebug>
+#include <QFile>
 #include <QJsonParseError>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
 
-ConfigHelper::ConfigHelper(ConnectionTableModel *model, QObject *parent) :
+ConfigHelper::ConfigHelper(const QString &configuration, QObject *parent) :
     QObject(parent),
-    model(model)
+    configFile(configuration)
 {
-#ifdef Q_OS_WIN
-    configFile = QCoreApplication::applicationDirPath() + "/config.ini";
-#else
-    QDir configDir = QDir::homePath() + "/.config/shadowsocks-qt5";
-    configFile = configDir.absolutePath() + "/config.ini";
-    if (!configDir.exists()) {
-        configDir.mkpath(configDir.absolutePath());
-    }
-#endif
-
     settings = new QSettings(configFile, QSettings::IniFormat, this);
-    readConfiguration();
+    readGeneralSettings();
 }
 
 const QString ConfigHelper::profilePrefix = "Profile";
 
-void ConfigHelper::save()
+void ConfigHelper::save(const ConnectionTableModel &model)
 {
-    int size = model->rowCount();
+    int size = model.rowCount();
     settings->beginWriteArray(profilePrefix);
     for (int i = 0; i < size; ++i) {
         settings->setArrayIndex(i);
-        Connection *con = model->getItem(i)->getConnection();
+        Connection *con = model.getItem(i)->getConnection();
         QVariant value = QVariant::fromValue<SQProfile>(con->getProfile());
         settings->setValue("SQProfile", value);
     }
@@ -48,7 +36,7 @@ void ConfigHelper::save()
     settings->setValue("ConfigVersion", QVariant(2.6));
 }
 
-void ConfigHelper::importGuiConfigJson(const QString &file)
+void ConfigHelper::importGuiConfigJson(ConnectionTableModel *model, const QString &file)
 {
     QFile JSONFile(file);
     JSONFile.open(QIODevice::ReadOnly | QIODevice::Text);
@@ -113,12 +101,12 @@ void ConfigHelper::importGuiConfigJson(const QString &file)
     }
 }
 
-void ConfigHelper::exportGuiConfigJson(const QString &file)
+void ConfigHelper::exportGuiConfigJson(const ConnectionTableModel &model, const QString &file)
 {
     QJsonArray confArray;
-    int size = model->rowCount();
+    int size = model.rowCount();
     for (int i = 0; i < size; ++i) {
-        Connection *con = model->getItem(i)->getConnection();
+        Connection *con = model.getItem(i)->getConnection();
         QJsonObject json;
         json["remarks"] = QJsonValue(con->profile.name);
         json["method"] = QJsonValue(con->profile.method.toLower());
@@ -235,7 +223,7 @@ void ConfigHelper::setShowFilterBar(bool show)
     showFilterBar = show;
 }
 
-void ConfigHelper::readConfiguration()
+void ConfigHelper::read(ConnectionTableModel *model)
 {
     qreal configVer = settings->value("ConfigVersion", QVariant(2.4)).toReal();
     int size = settings->beginReadArray(profilePrefix);
@@ -255,7 +243,11 @@ void ConfigHelper::readConfiguration()
         model->appendConnection(con);
     }
     settings->endArray();
+    readGeneralSettings();
+}
 
+void ConfigHelper::readGeneralSettings()
+{
     toolbarStyle = settings->value("ToolbarStyle", QVariant(4)).toInt();
     hideWindowOnStartup = settings->value("HideWindowOnStartup").toBool();
     onlyOneInstace = settings->value("OnlyOneInstance", QVariant(true)).toBool();
@@ -282,13 +274,33 @@ void ConfigHelper::checkProfileDataUsageReset(SQProfile &profile)
     }
 }
 
-void ConfigHelper::startAllAutoStart()
+void ConfigHelper::startAllAutoStart(const ConnectionTableModel& model)
 {
-    int size = model->rowCount();
+    int size = model.rowCount();
     for (int i = 0; i < size; ++i) {
-        Connection *con = model->getItem(i)->getConnection();
+        Connection *con = model.getItem(i)->getConnection();
         if (con->profile.autoStart) {
             con->start();
         }
     }
+}
+
+QByteArray ConfigHelper::getMainWindowGeometry() const
+{
+    return settings->value("MainWindowGeometry").toByteArray();
+}
+
+void ConfigHelper::setMainWindowGeometry(const QByteArray &geometry)
+{
+    settings->setValue("MainWindowGeometry", QVariant(geometry));
+}
+
+QByteArray ConfigHelper::getMainWindowState() const
+{
+    return settings->value("MainWindowState").toByteArray();
+}
+
+void ConfigHelper::setMainWindowState(const QByteArray &state)
+{
+    settings->setValue("MainWindowState", QVariant(state));
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Symeon Huang <hzwhuang@gmail.com>
+ * Copyright (C) 2014-2016 Symeon Huang <hzwhuang@gmail.com>
  *
  * shadowsocks-qt5 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -22,10 +22,15 @@
 #include <QDataStream>
 #include <QDate>
 #include <QDateTime>
+#include <QtShadowsocks>
 
 struct SQProfile
 {
     SQProfile();
+    SQProfile(const QSS::Profile& profile); // Copy values from QSS Profile
+    SQProfile(const QString& uri); // Construct it using ss protocol
+
+    QSS::Profile toProfile() const; // Convert it into a QSS Profile
 
     bool autoStart;
     bool debug;
@@ -44,6 +49,10 @@ struct SQProfile
     QDate nextResetDate;//next scheduled date to reset data usage
     bool httpMode;
     bool onetimeAuth;
+
+    static const int LATENCY_TIMEOUT = -1;
+    static const int LATENCY_ERROR = -2;
+    static const int LATENCY_UNKNOWN = -3;
 };
 Q_DECLARE_METATYPE(SQProfile)
 

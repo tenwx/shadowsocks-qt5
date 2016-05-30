@@ -1,7 +1,7 @@
 Shadowsocks-Qt5
 ===============
 
-Please check [project's wiki](https://github.com/librehat/shadowsocks-qt5/wiki) for "how-tos".
+Please check [project's wiki](https://github.com/shadowsocks/shadowsocks-qt5/wiki) for "how-tos".
 
 Introduction
 ------------
@@ -20,13 +20,17 @@ Features
 Note
 ----
 
-If `ss-qt5` crashes and the **only one instance** mode is checked, you may need to manually delete `/tmp/qipc_sharedmemory_ShadowsocksQt*` and `/tmp/qipc_systemsem_ShadowsocksQt*`. Otherwise, `ss-qt5` will complain that another instance is already running.
+If `ss-qt5` crashes and the **only one instance** mode is checked,
+you may need to manually delete `/tmp/qipc_sharedmemory_ShadowsocksQt*`
+and `/tmp/qipc_systemsem_ShadowsocksQt*`.
+Otherwise, `ss-qt5` will complain that another instance is already running.
+Run `ss-qt5` again is also expected to work.
 
 LICENSE
 -------
 
 ![](http://www.gnu.org/graphics/lgplv3-147x51.png)
 
-Copyright © 2014-2015 Symeon Huang
+Copyright © 2014-2016 Symeon Huang
 
 This project is licensed under version 3 of the GNU Lesser General Public License.

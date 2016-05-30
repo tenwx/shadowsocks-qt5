@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2015 Symeon Huang <hzwhuang@gmail.com>
+ * Copyright (C) 2014-2016 Symeon Huang <hzwhuang@gmail.com>
  *
  * shadowsocks-qt5 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -34,31 +34,31 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(ConfigHelper *confHelper, QWidget *parent = 0);
     ~MainWindow();
-
-    bool isOnlyOneInstance() const;
-    bool isHideWindowOnStartup() const;
 
     void startAutoStartConnections();
 
 private:
+    Ui::MainWindow *ui;
+
     ConnectionTableModel *model;
     QSortFilterProxyModel *proxyModel;
     ConfigHelper *configHelper;
-    Ui::MainWindow *ui;
     StatusNotifier *notifier;
 
     void newProfile(Connection *);
     void editRow(int row);
     void blockChildrenSignals(bool);
     void checkCurrentIndex();
+    void setupActionIcon();
 
     static const QUrl issueUrl;
 
 private slots:
     void onImportGuiJson();
     void onExportGuiJson();
+    void onSaveManually();
     void onAddManually();
     void onAddScreenQRCode();
     void onAddScreenQRCodeCapturer();
@@ -83,6 +83,7 @@ private slots:
     void onCustomContextMenuRequested(const QPoint &pos);
     void onFilterToggled(bool);
     void onFilterTextChanged(const QString &text);
+    void onQRCodeCapturerResultFound(const QString &uri);
 
 protected slots:
     void hideEvent(QHideEvent *e);

@@ -18,13 +18,7 @@ Connection::Connection(const SQProfile &_profile, QObject *parent) :
 Connection::Connection(QString uri, QObject *parent) :
     Connection(parent)
 {
-    uri.remove(0, 5);//remove the prefix "ss://" from uri
-    QStringList resultList = QString(QByteArray::fromBase64(QByteArray(uri.toStdString().c_str()))).split(':');
-    profile.method = resultList.takeFirst().toUpper();
-    profile.serverPort = resultList.takeLast().toUShort();
-    QStringList ser = resultList.join(':').split('@');//there are lots of ':' in IPv6 address
-    profile.serverAddress = ser.takeLast();
-    profile.password = ser.join('@');//incase there is a '@' in password
+    profile = SQProfile(uri);
 }
 
 Connection::~Connection()
@@ -49,10 +43,7 @@ const QString& Connection::getLog() const
 
 QByteArray Connection::getURI() const
 {
-    QString ssurl = QString("%1:%2@%3:%4").arg(profile.method.toLower()).arg(profile.password).arg(profile.serverAddress).arg(QString::number(profile.serverPort));
-    QByteArray ba = QByteArray(ssurl.toStdString().c_str()).toBase64();
-    ba.prepend("ss://");
-    return ba;
+    return profile.toProfile().toURI();
 }
 
 bool Connection::isValid() const
@@ -84,21 +75,11 @@ void Connection::start()
 {
     profile.lastTime = QDateTime::currentDateTime();
     //perform a latency test if the latency is unknown
-    if (profile.latency == -3) {
+    if (profile.latency == SQProfile::LATENCY_UNKNOWN) {
         latencyTest();
     }
 
-    QSS::Profile qssprofile;
-    qssprofile.server = profile.serverAddress;
-    qssprofile.server_port = profile.serverPort;
-    qssprofile.local_address = profile.localAddress;
-    qssprofile.local_port = profile.localPort;
-    qssprofile.method = profile.method;
-    qssprofile.password = profile.password;
-    qssprofile.timeout = profile.timeout;
-    qssprofile.http_proxy = profile.httpMode;
-    qssprofile.debug = profile.debug;
-    qssprofile.auth = profile.onetimeAuth;
+    QSS::Profile qssprofile = profile.toProfile();
 
     if (controller) {
         controller->deleteLater();
@@ -134,9 +115,9 @@ void Connection::stop()
 void Connection::testAddressLatency(const QHostAddress &addr)
 {
     QSS::AddressTester *addrTester = new QSS::AddressTester(addr, profile.serverPort, this);
-    connect(addrTester, &QSS::AddressTester::lagTestFinished, this, &Connection::onLatencyAvailable);
-    connect(addrTester, &QSS::AddressTester::lagTestFinished, addrTester, &QSS::AddressTester::deleteLater);
-    addrTester->startLagTest();
+    connect(addrTester, &QSS::AddressTester::connectivityTestFinished, this, &Connection::onConnectivityTestFinished, Qt::QueuedConnection);
+    connect(addrTester, &QSS::AddressTester::lagTestFinished, this, &Connection::onLatencyAvailable, Qt::QueuedConnection);
+    addrTester->startConnectivityTest(profile.method, profile.password, profile.onetimeAuth);
 }
 
 void Connection::onNewBytesTransmitted(const quint64 &b)
@@ -160,12 +141,23 @@ void Connection::onServerAddressLookedUp(const QHostInfo &host)
     if (host.error() == QHostInfo::NoError) {
         testAddressLatency(host.addresses().first());
     } else {
-        onLatencyAvailable(-2);
+        onLatencyAvailable(SQProfile::LATENCY_ERROR);
     }
 }
 
-void Connection::onLatencyAvailable(const int &latency)
+void Connection::onLatencyAvailable(const int latency)
 {
     profile.latency = latency;
     emit latencyAvailable(latency);
+}
+
+void Connection::onConnectivityTestFinished(bool con)
+{
+    QSS::AddressTester* tester = qobject_cast<QSS::AddressTester*>(sender());
+    if (!con) {
+        disconnect(tester, &QSS::AddressTester::lagTestFinished, this, &Connection::onLatencyAvailable);
+        this->onLatencyAvailable(SQProfile::LATENCY_ERROR);
+        onNewLog(QStringLiteral("Internet connectivity test failed. Please check the connection's profile and your firewall settings."));
+    }
+    tester->deleteLater();
 }

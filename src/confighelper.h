@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015 Symeon Huang <hzwhuang@gmail.com>
+ * Copyright (C) 2015-2016 Symeon Huang <hzwhuang@gmail.com>
  *
  * shadowsocks-qt5 is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -20,7 +20,6 @@
 #define CONFIGHELPER_H
 
 #include <QSettings>
-#include <QList>
 #include "connectiontablemodel.h"
 #include "connection.h"
 
@@ -29,12 +28,36 @@ class ConfigHelper : public QObject
     Q_OBJECT
 
 public:
-    ConfigHelper(ConnectionTableModel *model, QObject *parent);
+    /*
+     * Construct a ConfigHelper object using specified configuration file
+     * This constructor will call readGeneralSettings().
+     */
+    explicit ConfigHelper(const QString &configuration, QObject *parent = nullptr);
 
-    void importGuiConfigJson(const QString &file);
-    void exportGuiConfigJson(const QString &file);//the format is only compatible with shadowsocks-csharp
+    /*
+     * Call read() function to read all connection profiles into
+     * specified ConnectionTableModel.
+     * This function also calls readGeneralSettings().
+     */
+    void read(ConnectionTableModel *model);
+
+    /*
+     * readGeneralSettings() only reads General settings and store them into
+     * member variables.
+     */
+    void readGeneralSettings();
+
+    void save(const ConnectionTableModel &model);
+
+    void importGuiConfigJson(ConnectionTableModel *model, const QString &file);
+
+    //the format is only compatible with shadowsocks-csharp (shadowsocks-windows)
+    void exportGuiConfigJson(const ConnectionTableModel& model, const QString &file);
+
     Connection* configJsonToConnection(const QString &file);
-    void startAllAutoStart();//start those connections marked as auto-start
+
+    //start those connections marked as auto-start
+    void startAllAutoStart(const ConnectionTableModel& model);
 
     /* some functions used to communicate with SettingsDialog */
     int  getToolbarStyle() const;
@@ -44,9 +67,12 @@ public:
     bool isShowFilterBar() const;
     bool isNativeMenuBar() const;
     void setGeneralSettings(int ts, bool hide, bool oneInstance, bool nativeMB);
+    QByteArray getMainWindowGeometry() const;
+    void setMainWindowGeometry(const QByteArray &geometry);
+    QByteArray getMainWindowState() const;
+    void setMainWindowState(const QByteArray &state);
 
 public slots:
-    void save();
     void setShowToolbar(bool show);
     void setShowFilterBar(bool show);
 
@@ -61,10 +87,8 @@ private:
     bool showFilterBar;
     bool nativeMenuBar;
     QSettings *settings;
-    ConnectionTableModel *model;
     QString configFile;
 
-    void readConfiguration();
     void checkProfileDataUsageReset(SQProfile &profile);
 
     static const QString profilePrefix;
